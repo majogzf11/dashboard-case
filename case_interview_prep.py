@@ -1,7 +1,8 @@
 import os
+import json
+import uuid
 import streamlit as st
 import google.generativeai as genai
-import json
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -11,19 +12,56 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS (Fondo blanco global y botones blancos) ────────────────────────
+# ── Sistema de Persistencia (Guardar y Cargar estado en disco) ───────────────
+DATA_DIR = "user_sessions"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# 1. Asignar un ID único al usuario en la URL si no existe
+if "session_id" not in st.query_params:
+    st.query_params["session_id"] = str(uuid.uuid4())
+
+user_id = st.query_params["session_id"]
+session_file_path = os.path.join(DATA_DIR, f"{user_id}.json")
+
+def save_to_disk():
+    """Guarda el estado actual en un archivo JSON local."""
+    data = {
+        "selected_case": st.session_state.selected_case,
+        "current_step": st.session_state.current_step,
+        "answers": st.session_state.answers,
+        "feedbacks": st.session_state.feedbacks,
+        "show_hint": st.session_state.show_hint,
+        "session_complete": st.session_state.session_complete,
+    }
+    with open(session_file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def load_from_disk():
+    """Carga los datos guardados desde el archivo JSON si existe."""
+    if os.path.exists(session_file_path):
+        try:
+            with open(session_file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                # Convertir llaves numéricas de texto a entero (JSON guarda dicts con keys de string)
+                data["answers"] = {int(k): v for k, v in data.get("answers", {}).items()}
+                data["feedbacks"] = {int(k): v for k, v in data.get("feedbacks", {}).items()}
+                data["show_hint"] = {int(k): v for k, v in data.get("show_hint", {}).items()}
+                return data
+        except Exception:
+            return None
+    return None
+
+# ── Custom CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
-  /* 1. Forzar fondo blanco y texto oscuro en toda la app */
   html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
       background-color: #ffffff !important;
       color: #111827 !important;
       font-family: 'Inter', sans-serif;
   }
 
-  /* 2. Anular el modo oscuro de Streamlit sobre párrafos, títulos, listas y markdown */
   [data-testid="stMain"] *, 
   [data-testid="stMarkdownContainer"] *, 
   [data-testid="stAppViewContainer"] p,
@@ -36,7 +74,6 @@ st.markdown("""
       color: #111827 !important;
   }
 
-  /* 3. Estilos de la barra lateral (Sidebar) */
   [data-testid="stSidebar"] {
       background-color: #f8fafc !important;
       border-right: 1px solid #e2e8f0 !important;
@@ -45,7 +82,6 @@ st.markdown("""
       color: #111827 !important;
   }
 
-  /* 4. Títulos y encabezados principales */
   .hero-title {
       font-family: 'Playfair Display', serif;
       font-size: 2.6rem;
@@ -60,7 +96,6 @@ st.markdown("""
       margin-bottom: 2rem;
   }
 
-  /* 5. Componentes de pasos y casos */
   .step-pill {
       display: inline-block;
       background: #111827 !important;
@@ -100,7 +135,6 @@ st.markdown("""
       margin-right: 6px;
   }
 
-  /* 6. Recuadros de Pistas y Feedback */
   .hint-box {
       background: #f0f4ff !important;
       border-left: 4px solid #4361ee !important;
@@ -151,14 +185,12 @@ st.markdown("""
       margin-top: 8px;
   }
 
-  /* 7. Inputs y Textarea */
   .stTextArea textarea {
       color: #111827 !important;
       background-color: #ffffff !important;
       border: 1px solid #cbd5e1 !important;
   }
 
-  /* 8. Botones en Blanco */
   .stButton > button, 
   button[data-testid="baseButton-secondary"],
   button[data-testid="baseButton-primary"] {
@@ -371,6 +403,9 @@ Evaluate this answer. Be rigorous but fair. Respond ONLY with the JSON object.
 
 # ── Session state init ────────────────────────────────────────────────────────
 def init_state():
+    # Intentar cargar datos del disco primero
+    saved_data = load_from_disk()
+    
     defaults = {
         "selected_case": None,
         "current_step": 0,
@@ -379,6 +414,10 @@ def init_state():
         "show_hint": {},
         "session_complete": False,
     }
+    
+    if saved_data:
+        defaults.update(saved_data)
+
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
@@ -413,6 +452,8 @@ with st.sidebar:
             st.session_state.feedbacks = {}
             st.session_state.show_hint = {}
             st.session_state.session_complete = False
+            save_to_disk()
+            st.rerun()
 
     st.markdown("---")
     if st.session_state.selected_case:
@@ -441,7 +482,6 @@ with st.sidebar:
 
 # ── Main area ─────────────────────────────────────────────────────────────────
 if not st.session_state.selected_case:
-    # Landing screen
     st.markdown('<p class="hero-title">Case Interview Coach</p>', unsafe_allow_html=True)
     st.markdown('<p class="hero-sub">AI-powered practice with real-time feedback. Pick a case from the sidebar to begin.</p>', unsafe_allow_html=True)
 
@@ -474,14 +514,12 @@ if not st.session_state.selected_case:
             st.caption(desc)
 
 else:
-    # Case session
     case_name = st.session_state.selected_case
     case = CASES[case_name]
     steps = case["steps"]
     n_steps = len(steps)
     current = st.session_state.current_step
 
-    # Header
     st.markdown(f'<p class="hero-title">{case_name}</p>', unsafe_allow_html=True)
     diff = case["difficulty"]
     diff_color = {"Easy": "#38a169", "Medium": "#d69e2e", "Hard": "#e53e3e"}.get(diff, "#718096")
@@ -491,19 +529,16 @@ else:
         unsafe_allow_html=True,
     )
 
-    # Context box
     with st.expander("📋 Case brief (click to expand / collapse)", expanded=(current == 0)):
         st.markdown(case["context"])
 
     st.markdown("---")
 
-    # Step tabs
     tab_labels = [f"Step {i+1}" for i in range(n_steps)]
     tabs = st.tabs(tab_labels)
 
     for i, (tab, step) in enumerate(zip(tabs, steps)):
         with tab:
-            # Status indicator
             if i in st.session_state.feedbacks:
                 score = st.session_state.feedbacks[i]["score"]
                 color = "#38a169" if score >= 7 else ("#d69e2e" if score >= 5 else "#e53e3e")
@@ -520,20 +555,18 @@ else:
             st.markdown(f"<span style='color:{color};font-size:0.85rem;'>{status}</span>", unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Question
             st.markdown(f'<p class="step-desc">📝 <strong>Question:</strong> {step["prompt"]}</p>', unsafe_allow_html=True)
 
-            # Hint toggle
             hint_key = f"hint_{i}"
             if st.button("💡 Show hint", key=hint_key):
                 st.session_state.show_hint[i] = not st.session_state.show_hint.get(i, False)
+                save_to_disk()
 
             if st.session_state.show_hint.get(i, False):
                 st.markdown(f'<div class="hint-box">💡 <strong>Hint:</strong> {step["hint"]}</div>', unsafe_allow_html=True)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Answer area
             if i <= current:
                 answer_key = f"answer_{i}"
                 existing_answer = st.session_state.answers.get(i, "")
@@ -547,6 +580,7 @@ else:
                         placeholder="Structure your answer clearly. Think out loud. Use frameworks.",
                     )
                     st.session_state.answers[i] = user_answer
+                    save_to_disk()
 
                     col_submit, col_clear = st.columns([2, 1])
                     with col_submit:
@@ -562,18 +596,19 @@ else:
                                             st.session_state.current_step = current + 1
                                         elif i == current and current == n_steps - 1:
                                             st.session_state.session_complete = True
+                                        save_to_disk()
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Error analyzing answer: {e}")
                     with col_clear:
                         if st.button("🗑️ Borrar texto", key=f"clear_text_{i}"):
                             st.session_state.answers[i] = ""
+                            save_to_disk()
                             st.rerun()
                 else:
                     st.markdown(f"**Your answer:**")
                     st.info(st.session_state.answers.get(i, ""))
 
-                # Show feedback if available
                 if i in st.session_state.feedbacks:
                     fb = st.session_state.feedbacks[i]
                     score = fb["score"]
@@ -616,17 +651,16 @@ else:
 """, unsafe_allow_html=True)
 
                     st.markdown("<br>", unsafe_allow_html=True)
-                    # Botón para reescribir y corregir la respuesta
                     if st.button("✏️ Corregir respuesta", key=f"edit_answer_{i}"):
                         del st.session_state.feedbacks[i]
                         st.session_state.current_step = i
                         st.session_state.session_complete = False
+                        save_to_disk()
                         st.rerun()
 
             else:
                 st.markdown('<p style="color:#4b5563 !important;font-style:italic;">Complete previous steps to unlock this one.</p>', unsafe_allow_html=True)
 
-    # Session complete summary
     if st.session_state.session_complete and len(st.session_state.feedbacks) == n_steps:
         st.markdown("---")
         st.markdown("## 🏁 Case Complete!")
@@ -656,4 +690,5 @@ else:
             st.session_state.feedbacks = {}
             st.session_state.show_hint = {}
             st.session_state.session_complete = False
+            save_to_disk()
             st.rerun()
