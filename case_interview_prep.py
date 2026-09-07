@@ -11,32 +11,60 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+# ── Custom CSS (Fondo blanco global y letras oscuras forzadas) ────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
-  html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+  /* 1. Forzar fondo blanco y texto oscuro en toda la app */
+  html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+      background-color: #ffffff !important;
+      color: #111827 !important;
+      font-family: 'Inter', sans-serif;
+  }
 
+  /* 2. Anular el modo oscuro de Streamlit sobre párrafos, títulos, listas y markdown */
+  [data-testid="stMain"] *, 
+  [data-testid="stMarkdownContainer"] *, 
+  [data-testid="stAppViewContainer"] p,
+  [data-testid="stAppViewContainer"] li,
+  [data-testid="stAppViewContainer"] span,
+  [data-testid="stAppViewContainer"] h1,
+  [data-testid="stAppViewContainer"] h2,
+  [data-testid="stAppViewContainer"] h3,
+  [data-testid="stAppViewContainer"] label {
+      color: #111827 !important;
+  }
+
+  /* 3. Estilos de la barra lateral (Sidebar) */
+  [data-testid="stSidebar"] {
+      background-color: #f8fafc !important;
+      border-right: 1px solid #e2e8f0 !important;
+  }
+  [data-testid="stSidebar"] * {
+      color: #111827 !important;
+  }
+
+  /* 4. Títulos y encabezados principales */
   .hero-title {
       font-family: 'Playfair Display', serif;
       font-size: 2.6rem;
       font-weight: 700;
-      color: #1a1a2e;
+      color: #111827 !important;
       line-height: 1.2;
       margin-bottom: 0.25rem;
   }
   .hero-sub {
       font-size: 1.05rem;
-      color: #5a6072;
+      color: #4b5563 !important;
       margin-bottom: 2rem;
   }
 
-  /* Step pill */
+  /* 5. Componentes de pasos y casos */
   .step-pill {
       display: inline-block;
-      background: #1a1a2e;
-      color: #ffffff;
+      background: #111827 !important;
+      color: #ffffff !important;
       font-size: 0.72rem;
       font-weight: 600;
       letter-spacing: 0.06em;
@@ -47,88 +75,93 @@ st.markdown("""
   .step-title {
       font-size: 1.25rem;
       font-weight: 700;
-      color: #1a1a2e;
+      color: #111827 !important;
       margin-bottom: 0.35rem;
   }
   .step-desc {
       font-size: 0.93rem;
-      color: #4a5568;
+      color: #374151 !important;
       line-height: 1.6;
   }
-  .hint-box {
-      background: #f0f4ff;
-      border-left: 4px solid #4361ee;
-      border-radius: 6px;
-      padding: 12px 16px;
-      font-size: 0.88rem;
-      color: #1a1a2e !important;
-      margin-top: 10px;
-  }
   .case-card {
-      background: #f8f9fc;
-      border: 1px solid #e2e8f0;
+      background: #f8f9fc !important;
+      border: 1px solid #e2e8f0 !important;
       border-radius: 12px;
       padding: 20px 24px;
       margin-bottom: 16px;
   }
   .case-tag {
-      background: #e8edff;
-      color: #3b52cc;
+      background: #e8edff !important;
+      color: #3b52cc !important;
       font-size: 0.75rem;
       font-weight: 600;
       padding: 3px 9px;
       border-radius: 20px;
       margin-right: 6px;
   }
+
+  /* 6. Recuadros de Pistas y Feedback */
+  .hint-box {
+      background: #f0f4ff !important;
+      border-left: 4px solid #4361ee !important;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 0.88rem;
+      color: #111827 !important;
+      margin-top: 10px;
+  }
   .feedback-good {
-      background: #f0fff4;
-      border-left: 4px solid #38a169;
+      background: #f0fff4 !important;
+      border-left: 4px solid #38a169 !important;
       border-radius: 6px;
       padding: 14px 18px;
       margin-top: 12px;
-      color: #1a1a2e !important;
+      color: #111827 !important;
   }
   .feedback-improve {
-      background: #fff8f0;
-      border-left: 4px solid #ed8936;
+      background: #fff8f0 !important;
+      border-left: 4px solid #ed8936 !important;
       border-radius: 6px;
       padding: 14px 18px;
       margin-top: 12px;
-      color: #1a1a2e !important;
+      color: #111827 !important;
   }
   .feedback-wrong {
-      background: #fff5f5;
-      border-left: 4px solid #e53e3e;
+      background: #fff5f5 !important;
+      border-left: 4px solid #e53e3e !important;
       border-radius: 6px;
       padding: 14px 18px;
       margin-top: 12px;
-      color: #1a1a2e !important;
+      color: #111827 !important;
   }
-  
-  /* Forzar color oscuro en los textos y listas dentro de los recuadros de feedback */
-  .feedback-good *, .feedback-improve *, .feedback-wrong *, .hint-box * {
-      color: #1a1a2e !important;
+
+  /* Asegurar que el contenido dentro de cualquier recuadro sea oscuro */
+  .feedback-good *, .feedback-improve *, .feedback-wrong *, .hint-box *, .case-card * {
+      color: #111827 !important;
   }
 
   .score-badge {
       font-size: 2rem;
       font-weight: 700;
-      color: #1a1a2e;
+      color: #111827 !important;
   }
   .progress-bar-bg {
-      background: #e2e8f0;
+      background: #e2e8f0 !important;
       border-radius: 99px;
       height: 8px;
       margin-top: 8px;
+  }
+
+  /* 7. Inputs y Textarea */
+  .stTextArea textarea {
+      color: #111827 !important;
+      background-color: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
   }
   .stButton > button {
       border-radius: 8px;
       font-weight: 600;
   }
-  [data-testid="stSidebar"] { background: #1a1a2e !important; }
-  [data-testid="stSidebar"] * { color: #e2e8f0 !important; }
-  [data-testid="stSidebar"] .stSelectbox label,
-  [data-testid="stSidebar"] .stMarkdown { color: #a0aec0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -282,7 +315,6 @@ def get_gemini_models():
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         return models if models else ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]
     except Exception:
-        # Fallback en caso de que aún no se haya ingresado la API Key o haya un error
         return ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]
 
 def get_client(model_name="models/gemini-1.5-flash"):
@@ -347,7 +379,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**Configuración de IA:**")
     available_models = get_gemini_models()
-    # Intenta seleccionar el modelo 'flash' por defecto para mayor rapidez si está disponible
     default_idx = 0
     for i, m in enumerate(available_models):
         if "flash" in m.lower():
@@ -410,8 +441,8 @@ if not st.session_state.selected_case:
     <span class="case-tag">{data['industry']}</span>
     <span style="font-size:0.75rem;font-weight:600;color:{diff_color};">{data['difficulty']}</span>
   </div>
-  <p style="font-size:1.05rem;font-weight:700;color:#1a1a2e;margin:10px 0 6px;">{name}</p>
-  <p style="font-size:0.85rem;color:#5a6072;">{len(data['steps'])} steps · AI-graded answers</p>
+  <p style="font-size:1.05rem;font-weight:700;color:#111827 !important;margin:10px 0 6px;">{name}</p>
+  <p style="font-size:0.85rem;color:#4b5563 !important;">{len(data['steps'])} steps · AI-graded answers</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -488,7 +519,7 @@ else:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Answer area — only active for current step
+            # Answer area
             if i <= current:
                 answer_key = f"answer_{i}"
                 existing_answer = st.session_state.answers.get(i, "")
@@ -513,7 +544,6 @@ else:
                                     try:
                                         feedback = analyze_answer(case_name, step, user_answer, case["context"], selected_model)
                                         st.session_state.feedbacks[i] = feedback
-                                        # Advance to next step
                                         if i == current and current < n_steps - 1:
                                             st.session_state.current_step = current + 1
                                         elif i == current and current == n_steps - 1:
@@ -522,7 +552,6 @@ else:
                                     except Exception as e:
                                         st.error(f"Error analyzing answer: {e}")
                 else:
-                    # Already answered — show answer as read-only
                     st.markdown(f"**Your answer:**")
                     st.info(st.session_state.answers.get(i, ""))
 
@@ -559,18 +588,17 @@ else:
                                     "".join(f"<li>{g}</li>" for g in fb["gaps"]) +
                                     "</ul></div>", unsafe_allow_html=True)
 
-                    # Se agregó color explícito #1a1a2e aquí también para prevenir invisibilidad en modo oscuro
                     st.markdown(f"""
-<div style="background:#f0f4ff;border-left:4px solid #4361ee;border-radius:6px;padding:12px 16px;font-size:0.88rem;margin-top:14px;color:#1a1a2e !important;">
-  <strong>📌 Model answer:</strong> {fb['model_answer_summary']}
+<div style="background:#f0f4ff !important;border-left:4px solid #4361ee;border-radius:6px;padding:12px 16px;font-size:0.88rem;margin-top:14px;color:#111827 !important;">
+  <strong style="color:#111827 !important;">📌 Model answer:</strong> <span style="color:#111827 !important;">{fb['model_answer_summary']}</span>
 </div>
-<div style="background:#f7f3ff;border-left:4px solid #805ad5;border-radius:6px;padding:12px 16px;margin-top:10px;font-size:0.88rem;color:#1a1a2e !important;">
-  <strong>🎯 Coaching tip:</strong> {fb['coaching_tip']}
+<div style="background:#f7f3ff !important;border-left:4px solid #805ad5;border-radius:6px;padding:12px 16px;margin-top:10px;font-size:0.88rem;color:#111827 !important;">
+  <strong style="color:#111827 !important;">🎯 Coaching tip:</strong> <span style="color:#111827 !important;">{fb['coaching_tip']}</span>
 </div>
 """, unsafe_allow_html=True)
 
             else:
-                st.markdown('<p style="color:#a0aec0;font-style:italic;">Complete previous steps to unlock this one.</p>', unsafe_allow_html=True)
+                st.markdown('<p style="color:#4b5563 !important;font-style:italic;">Complete previous steps to unlock this one.</p>', unsafe_allow_html=True)
 
     # Session complete summary
     if st.session_state.session_complete and len(st.session_state.feedbacks) == n_steps:
