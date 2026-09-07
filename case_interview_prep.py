@@ -61,7 +61,7 @@ st.markdown("""
       border-radius: 6px;
       padding: 12px 16px;
       font-size: 0.88rem;
-      color: #1a1a2e;
+      color: #1a1a2e !important;
       margin-top: 10px;
   }
   .case-card {
@@ -86,6 +86,7 @@ st.markdown("""
       border-radius: 6px;
       padding: 14px 18px;
       margin-top: 12px;
+      color: #1a1a2e !important;
   }
   .feedback-improve {
       background: #fff8f0;
@@ -93,6 +94,7 @@ st.markdown("""
       border-radius: 6px;
       padding: 14px 18px;
       margin-top: 12px;
+      color: #1a1a2e !important;
   }
   .feedback-wrong {
       background: #fff5f5;
@@ -100,7 +102,14 @@ st.markdown("""
       border-radius: 6px;
       padding: 14px 18px;
       margin-top: 12px;
+      color: #1a1a2e !important;
   }
+  
+  /* Forzar color oscuro en los textos y listas dentro de los recuadros de feedback */
+  .feedback-good *, .feedback-improve *, .feedback-wrong *, .hint-box * {
+      color: #1a1a2e !important;
+  }
+
   .score-badge {
       font-size: 2rem;
       font-weight: 700;
@@ -546,15 +555,16 @@ else:
                                     "".join(f"<li>{s}</li>" for s in fb["strengths"]) +
                                     "</ul></div>", unsafe_allow_html=True)
                     with col_g:
-                        st.markdown(f'<div class="feedback-improve"><strong>⚠️ Gaps / To improve</strong><ul>' +
+                        st.markdown(f'<div class="{css_class.replace("good", "improve")}"><strong>⚠️ Gaps / To improve</strong><ul>' +
                                     "".join(f"<li>{g}</li>" for g in fb["gaps"]) +
                                     "</ul></div>", unsafe_allow_html=True)
 
+                    # Se agregó color explícito #1a1a2e aquí también para prevenir invisibilidad en modo oscuro
                     st.markdown(f"""
-<div class="hint-box" style="margin-top:14px;">
+<div style="background:#f0f4ff;border-left:4px solid #4361ee;border-radius:6px;padding:12px 16px;font-size:0.88rem;margin-top:14px;color:#1a1a2e !important;">
   <strong>📌 Model answer:</strong> {fb['model_answer_summary']}
 </div>
-<div style="background:#f7f3ff;border-left:4px solid #805ad5;border-radius:6px;padding:12px 16px;margin-top:10px;font-size:0.88rem;">
+<div style="background:#f7f3ff;border-left:4px solid #805ad5;border-radius:6px;padding:12px 16px;margin-top:10px;font-size:0.88rem;color:#1a1a2e !important;">
   <strong>🎯 Coaching tip:</strong> {fb['coaching_tip']}
 </div>
 """, unsafe_allow_html=True)
