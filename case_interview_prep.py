@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import anthropic
 import json
@@ -255,7 +256,11 @@ Customers are threatening to switch suppliers. Diagnose and fix.
 # ── Anthropic client ──────────────────────────────────────────────────────────
 @st.cache_resource
 def get_client():
-    return anthropic.Anthropic()
+    api_key = (
+        os.environ.get("OPENAI_API_KEY")
+        or st.secrets.get("OPENAI_API_KEY")
+    )
+    return anthropic.Anthropic(api_key=api_key)
 
 def analyze_answer(case_name, step, user_answer, case_context):
     """Call Claude to evaluate the user's answer and give structured feedback."""
