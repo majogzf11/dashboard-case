@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS (Fondo blanco global y letras oscuras forzadas) ────────────────
+# ── Custom CSS (Fondo blanco global y botones blancos) ────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
@@ -135,7 +135,6 @@ st.markdown("""
       color: #111827 !important;
   }
 
-  /* Asegurar que el contenido dentro de cualquier recuadro sea oscuro */
   .feedback-good *, .feedback-improve *, .feedback-wrong *, .hint-box *, .case-card * {
       color: #111827 !important;
   }
@@ -158,9 +157,26 @@ st.markdown("""
       background-color: #ffffff !important;
       border: 1px solid #cbd5e1 !important;
   }
-  .stButton > button {
-      border-radius: 8px;
-      font-weight: 600;
+
+  /* 8. Botones en Blanco */
+  .stButton > button, 
+  button[data-testid="baseButton-secondary"],
+  button[data-testid="baseButton-primary"] {
+      background-color: #ffffff !important;
+      color: #111827 !important;
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+      transition: all 0.2s ease-in-out !important;
+  }
+
+  .stButton > button:hover, 
+  button[data-testid="baseButton-secondary"]:hover,
+  button[data-testid="baseButton-primary"]:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8 !important;
+      color: #111827 !important;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -309,7 +325,6 @@ def configure_gemini():
 
 @st.cache_data
 def get_gemini_models():
-    """Busca dinámicamente las diferentes modalidades/modelos disponibles de Gemini"""
     configure_gemini()
     try:
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -322,7 +337,6 @@ def get_client(model_name="models/gemini-1.5-flash"):
     return genai.GenerativeModel(model_name)
 
 def analyze_answer(case_name, step, user_answer, case_context, model_name):
-    """Call Gemini to evaluate the user's answer and give structured feedback."""
     model = get_client(model_name)
 
     prompt = f"""You are an expert management consulting interview coach with 15 years of experience at McKinsey, BCG, and Bain.
@@ -536,7 +550,7 @@ else:
 
                     col_submit, col_clear = st.columns([2, 1])
                     with col_submit:
-                        if st.button("🧠 Analyze my answer", key=f"submit_{i}", type="primary"):
+                        if st.button("🧠 Analyze my answer", key=f"submit_{i}"):
                             if len(user_answer.strip()) < 30:
                                 st.warning("Please write a more complete answer before submitting (at least a sentence or two).")
                             else:
@@ -551,6 +565,10 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Error analyzing answer: {e}")
+                    with col_clear:
+                        if st.button("🗑️ Borrar texto", key=f"clear_text_{i}"):
+                            st.session_state.answers[i] = ""
+                            st.rerun()
                 else:
                     st.markdown(f"**Your answer:**")
                     st.info(st.session_state.answers.get(i, ""))
@@ -597,6 +615,14 @@ else:
 </div>
 """, unsafe_allow_html=True)
 
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    # Botón para reescribir y corregir la respuesta
+                    if st.button("✏️ Corregir respuesta", key=f"edit_answer_{i}"):
+                        del st.session_state.feedbacks[i]
+                        st.session_state.current_step = i
+                        st.session_state.session_complete = False
+                        st.rerun()
+
             else:
                 st.markdown('<p style="color:#4b5563 !important;font-style:italic;">Complete previous steps to unlock this one.</p>', unsafe_allow_html=True)
 
@@ -624,7 +650,7 @@ else:
         df = pd.DataFrame(chart_data)
         st.bar_chart(df.set_index("Step"))
 
-        if st.button("🔄 Restart this case", type="primary"):
+        if st.button("🔄 Restart this case"):
             st.session_state.current_step = 0
             st.session_state.answers = {}
             st.session_state.feedbacks = {}
