@@ -1,6 +1,6 @@
 import os
 import streamlit as st
-import anthropic
+import google.generativeai as genai
 import json
 
 # ── Page config ──────────────────────────────────────────────────────────────
@@ -253,33 +253,50 @@ Customers are threatening to switch suppliers. Diagnose and fix.
     },
 }
 
-# ── Anthropic client ──────────────────────────────────────────────────────────
+# ── Gemini client ─────────────────────────────────────────────────────────────
 @st.cache_resource
-def get_client():
+def configure_gemini():
     api_key = (
-        os.environ.get("OPENAI_API_KEY")
-        or st.secrets.get("OPENAI_API_KEY")
+        os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or (st.secrets.get("GEMINI_API_KEY") if hasattr(st, "secrets") else None)
+        or (st.secrets.get("OPENAI_API_KEY") if hasattr(st, "secrets") else None)
     )
-    return anthropic.Anthropic(api_key=api_key)
+    if api_key:
+        genai.configure(api_key=api_key)
 
-def analyze_answer(case_name, step, user_answer, case_context):
-    """Call Claude to evaluate the user's answer and give structured feedback."""
-    client = get_client()
+@st.cache_data
+def get_gemini_models():
+    """Busca dinámicamente las diferentes modalidades/modelos disponibles de Gemini"""
+    configure_gemini()
+    try:
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        return models if models else ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]
+    except Exception:
+        # Fallback en caso de que aún no se haya ingresado la API Key o haya un error
+        return ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]
 
-    system_prompt = """You are an expert management consulting interview coach with 15 years of experience at McKinsey, BCG, and Bain.
+def get_client(model_name="models/gemini-1.5-flash"):
+    configure_gemini()
+    return genai.GenerativeModel(model_name)
+
+def analyze_answer(case_name, step, user_answer, case_context, model_name):
+    """Call Gemini to evaluate the user's answer and give structured feedback."""
+    model = get_client(model_name)
+
+    prompt = f"""You are an expert management consulting interview coach with 15 years of experience at McKinsey, BCG, and Bain.
 You evaluate candidates' answers to case interview questions and give precise, actionable feedback.
-Always respond in JSON with this exact structure:
-{
+Always respond ONLY in JSON with this exact structure, no extra text, no markdown fences:
+{{
   "score": <integer 1-10>,
   "verdict": "<Excellent|Good|Needs Work|Incomplete>",
   "strengths": ["<strength 1>", "<strength 2>"],
   "gaps": ["<gap 1>", "<gap 2>"],
   "model_answer_summary": "<2-3 sentence ideal answer>",
   "coaching_tip": "<one specific, actionable tip for improvement>"
-}
-Be specific, honest, and constructive. Score 8+ only for genuinely strong answers."""
+}}
+Be specific, honest, and constructive. Score 8+ only for genuinely strong answers.
 
-    user_msg = f"""
 CASE: {case_name}
 CASE CONTEXT: {case_context}
 
@@ -289,19 +306,11 @@ QUESTION: {step['prompt']}
 CANDIDATE'S ANSWER:
 {user_answer}
 
-Evaluate this answer. Be rigorous but fair.
+Evaluate this answer. Be rigorous but fair. Respond ONLY with the JSON object.
 """
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1000,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_msg}],
-    )
-
-    raw = response.content[0].text
-    # Strip markdown fences if present
-    raw = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+    response = model.generate_content(prompt)
+    raw = response.text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
     return json.loads(raw)
 
 
@@ -325,6 +334,18 @@ init_state()
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 📊 Case Interview Coach")
+    
+    st.markdown("---")
+    st.markdown("**Configuración de IA:**")
+    available_models = get_gemini_models()
+    # Intenta seleccionar el modelo 'flash' por defecto para mayor rapidez si está disponible
+    default_idx = 0
+    for i, m in enumerate(available_models):
+        if "flash" in m.lower():
+            default_idx = i
+            break
+    selected_model = st.selectbox("Modalidad de Gemini:", available_models, index=default_idx)
+
     st.markdown("---")
     st.markdown("**Select a business case:**")
 
@@ -392,7 +413,7 @@ if not st.session_state.selected_case:
         (col_a, "1️⃣", "Pick a case", "Choose from 3 real-world business scenarios."),
         (col_b, "2️⃣", "Read the brief", "Understand the situation like a real consultant."),
         (col_c, "3️⃣", "Answer each step", "Work through the case step by step."),
-        (col_d, "4️⃣", "Get AI feedback", "Claude grades your answer and gives coaching."),
+        (col_d, "4️⃣", "Get AI feedback", "Gemini grades your answer and gives coaching."),
     ]:
         with col:
             st.markdown(f"**{emoji} {title}**")
@@ -481,7 +502,7 @@ else:
                             else:
                                 with st.spinner("Coach is reviewing your answer..."):
                                     try:
-                                        feedback = analyze_answer(case_name, step, user_answer, case["context"])
+                                        feedback = analyze_answer(case_name, step, user_answer, case["context"], selected_model)
                                         st.session_state.feedbacks[i] = feedback
                                         # Advance to next step
                                         if i == current and current < n_steps - 1:
